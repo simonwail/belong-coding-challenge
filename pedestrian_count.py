@@ -10,11 +10,17 @@ import argparse
 import datetime as dt
 import calendar
 import pandas as pd
+import boto3
+import io
+from urllib.parse import urlparse
 
 DATA_SOURCE="/Users/simonw/Downloads/Pedestrian_Counting_System_-_Monthly__counts_per_hour_.csv"
+COL_NAMES=['ID','Date_Time','Year','Month','Mdate','Day','Time','Sensor_ID','Sensor_Name','Hourly_Counts']
+ACCESS_KEY_ID="AKIAZXFQUCNOSLKGLNBT"
+SECRET_ACCESS_KEY="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"
+
 NUM_SENSORS=78
 HOURS=24
-
 
 def load_day(df, day):
     '''
@@ -46,11 +52,36 @@ def load_month(year, month):
     :rtype: pandas.DataFrame
     '''
     
+    global args
+
     mn_name = calendar.month_name[month]
     
-    ped_iter = pd.read_csv(DATA_SOURCE, iterator=True, chunksize=NUM_SENSORS * HOURS)
-    return pd.concat([chunk[(chunk['Year']==year) & (chunk['Month']==mn_name)] for chunk in ped_iter])
-    
+    if args.s3 is None:
+        ped_iter = pd.read_csv(DATA_SOURCE, iterator=True, chunksize=NUM_SENSORS * HOURS)
+        return pd.concat([chunk[(chunk['Year']==year) & (chunk['Month']==mn_name)] for chunk in ped_iter])
+    else:
+        s3 = boto3.client('s3', aws_access_key_id=ACCESS_KEY_ID, aws_secret_access_key=SECRET_ACCESS_KEY)
+
+        s3obj = urlparse(args.s3, allow_fragments=False)
+
+        resp = s3.select_object_content(
+            Bucket=s3obj.netloc,
+            Key=s3obj.path.lstrip('/'),
+            ExpressionType='SQL',
+            Expression=f'SELECT s.* FROM s3object s where s."Year"=\'{year}\' and s."Month"=\'{mn_name}\'',
+            InputSerialization = {'CSV': {"FileHeaderInfo": "Use"}},
+            OutputSerialization = {'CSV': {}},
+            )
+
+        records = []
+        for event in resp['Payload']:
+            if 'Records' in event:
+                records.append(event['Records']['Payload'])
+                
+        file_str = ''.join(r.decode('utf-8') for r in records)
+
+        return pd.read_csv(io.StringIO(file_str), header=0, names=COL_NAMES)
+        
 
 def top_n(df, n):
     '''
@@ -68,10 +99,13 @@ def top_n(df, n):
     
 
 def main():
+    global args
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", "-d", help="Date to count pedestrians - dd/mm/yyyy")
     parser.add_argument("--month", "-m", help="Month to count pedestrians - mm/yyyy")
     parser.add_argument("--topn", "-n", default=10, help="Top n pedestrian sites to list")
+    parser.add_argument("--s3", "-s", help="S3 URL to data source file")
     args = parser.parse_args()
 
     if args.topn is not None:
