@@ -1,0 +1,4 @@
+# Required libraries for coding challenge
+pandas
+urllib3
+boto3
