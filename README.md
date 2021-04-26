@@ -50,10 +50,10 @@ Using the power of the python `pandas` package it is possible to perform complex
 The program is composed of several functions:
 
 1.	`main()` - the main program to parse and validate command line arguments and then to call necessary data processing functions.
-2.	`load_month()` - this function is used to load the dataset from either a local file, or S3 storage.  To optimise loading and reduce memory the data is filtered to only load the required month of data.  For a local file it uses `pandas` filtering, while for S3 it uses the `select` query capability.  A `pandas dataframe` is returned by this function.
+2.	`load_month()` - this function is used to load the dataset from either a local file, or S3 storage.  It is expected the input file is in CSV format.  To optimise loading and reduce memory the data is filtered to only load the required month of data.  For a local file it uses `pandas` filtering, while for S3 it uses the `select` query capability.  A `pandas dataframe` is returned by this function.
 3.	`load_day()` - this function simply filters the dataset for the selected day and returns a new `dataframe`.
 4.	`top_n()` - this function uses the power of `pandas` grouping, aggregation and sorting to select the top pedestrian site for the selected day or month.  A new `dataframe` is returned.
-5. `write_output` - this functions writes the results to a file if the command line argument is set.  If S3 is specified for the input dataset then the results file is written to the same S3 bucket.
+5. `write_output` - this functions writes the results in CSV format to a file if the command line argument is set.  If S3 is specified for the input dataset then the results file is written to the same S3 bucket.
 
 ## Testing
 
