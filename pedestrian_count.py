@@ -16,8 +16,8 @@ from urllib.parse import urlparse
 
 DATA_SOURCE="/Users/simonw/Downloads/Pedestrian_Counting_System_-_Monthly__counts_per_hour_.csv"
 COL_NAMES=['ID','Date_Time','Year','Month','Mdate','Day','Time','Sensor_ID','Sensor_Name','Hourly_Counts']
-ACCESS_KEY_ID="AKIAZXFQUCNOSLKGLNBT"
-SECRET_ACCESS_KEY="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"
+ACCESS_KEY_ID=""
+SECRET_ACCESS_KEY=""
 
 NUM_SENSORS=78
 HOURS=24
