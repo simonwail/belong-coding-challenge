@@ -78,14 +78,14 @@ def load_month(year, month):
             if 'Records' in event:
                 records.append(event['Records']['Payload'])
                 
-        file_str = ''.join(r.decode('utf-8') for r in records)
+        csv_str = ''.join(r.decode('utf-8') for r in records)
 
-        return pd.read_csv(io.StringIO(file_str), header=0, names=COL_NAMES)
+        return pd.read_csv(io.StringIO(csv_str), names=COL_NAMES)
         
 
 def top_n(df, n):
     '''
-    Function to aggregate data and calculate top n pedestrian BDistMSITestCase
+    Function to aggregate data and calculate top n pedestrian sites
     
     :param df: dataframe with data to aggregate
     :type df: pandas.dataframe
@@ -98,7 +98,37 @@ def top_n(df, n):
     return df.groupby("Sensor_Name", sort=False)["Hourly_Counts"].sum().sort_values(ascending=False).head(n)
     
 
+def write_output(df, fn):
+    '''
+    Function to write results to CSV
+    If S3 is defined, write to S3 bucket
+
+    :param df: Data to write
+    :type df: pandas.DataFrame
+    :param fn: filename to write output
+    :type fn: string
+    '''
+        
+    global args
+    
+    if args.s3 is None:
+        with open(fn, "w") as file:
+            df.to_csv(file, header=['Total_Counts'])
+    else:
+        s3 = boto3.resource('s3', aws_access_key_id=ACCESS_KEY_ID, aws_secret_access_key=SECRET_ACCESS_KEY)
+
+        s3obj = urlparse(args.s3, allow_fragments=False)
+
+        s3.Object(s3obj.netloc, fn).put(Body=df.to_csv(header=['Total_Counts']))
+
+
 def main():
+    '''
+    Main program.  Parses command line arguments and calls appropriate data loading and results functions
+    
+    Usage: python3 pedestrian_count.py [-h] [--date|-d dd/mm/yyyy] [--month|-m mm/yyyy] [--topn|-n <num>] [--s3|-s <date URL>] [--write|-w]
+    '''
+    
     global args
     
     parser = argparse.ArgumentParser()
@@ -106,6 +136,7 @@ def main():
     parser.add_argument("--month", "-m", help="Month to count pedestrians - mm/yyyy")
     parser.add_argument("--topn", "-n", default=10, help="Top n pedestrian sites to list")
     parser.add_argument("--s3", "-s", help="S3 URL to data source file")
+    parser.add_argument("--write", "-w", default=False, action=argparse.BooleanOptionalAction, help="Flag to write results to a file")
     args = parser.parse_args()
 
     if args.topn is not None:
@@ -126,6 +157,7 @@ def main():
             exit(1)
         month, year = args.month.split('/')
         df = load_month(int(year), int(month))
+        fn = f'Top_{top}_pedestrian_sites_for_{args.month.replace("/","-")}.csv'
     elif args.date is not None:
         try:
             dt.datetime.strptime(args.date, '%d/%m/%Y')
@@ -136,10 +168,13 @@ def main():
         day, month, year = args.date.split('/')
         df = load_month(int(year), int(month))
         df = load_day(df, int(day))
+        fn = f'Top_{top}_pedestrian_sites_for_{args.date.replace("/","-")}.csv'
     else:
+        print("No date provided, default to today")
         today = dt.date.today()
         df = load_month(today.year, today.month)
         df = load_day(df, today.day)
+        fn = f'Top_{top}_pedestrian_sites_for_{today.day}-{today.month}-{today.year}.csv'
     
     if df.size == 0:
         print("No data available for date selected")
@@ -147,6 +182,8 @@ def main():
             
     result = top_n(df, top)
     print(result)
+    if args.write:
+        write_output(result, fn)
     
 
 if __name__ == "__main__":
