@@ -41,7 +41,7 @@ The S3 URL to use to load the data is:
 s3://sw-pedestrian-count/Pedestrian_Counting_System_-_Monthly__counts_per_hour_.csv
 ```
 
-AWS credentials are hard-coded in the code.
+AWS credentials are to be hard-coded in the code (lines 19 & 20), but provided separately and not stored in a public GitHub repo.
 
 ## Design
 
